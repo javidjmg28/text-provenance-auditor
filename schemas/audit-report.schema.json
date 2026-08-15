@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Text Provenance Auditor V3 Report",
+  "type": "object",
+  "required": [
+    "version",
+    "source",
+    "chars",
+    "words",
+    "watermark_verification",
+    "c2pa",
+    "unicode_forensics",
+    "stylometry",
+    "evidence_summary",
+    "evidence_scores",
+    "limitations"
+  ],
+  "properties": {
+    "version": {"const": "0.3.0"},
+    "source": {"type": "string"},
+    "chars": {"type": "integer", "minimum": 0},
+    "words": {"type": "integer", "minimum": 0},
+    "watermark_verification": {
+      "type": "object",
+      "required": ["provider", "status", "verified", "evidence_level"],
+      "properties": {
+        "provider": {"type": "string"},
+        "status": {"type": "string"},
+        "verified": {"type": ["boolean", "null"]},
+        "score": {"type": ["number", "null"]},
+        "reason": {"type": ["string", "null"]},
+        "method": {"type": ["string", "null"]},
+        "evidence_level": {"type": "string"},
+        "metadata": {"type": "object"}
+      }
+    },
+    "c2pa": {"type": "object"},
+    "unicode_forensics": {"type": "object"},
+    "stylometry": {"type": "object"},
+    "segments": {"type": "array"},
+    "evidence_summary": {"type": ["object", "null"]},
+    "evidence_scores": {
+      "type": ["object", "null"],
+      "properties": {
+        "provider_evidence": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+        "signed_provenance": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+        "observable_text_anomalies": {"type": "integer", "minimum": 0, "maximum": 100},
+        "style_heuristics": {"type": "integer", "minimum": 0, "maximum": 60}
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

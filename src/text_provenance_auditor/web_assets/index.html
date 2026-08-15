@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Text Provenance Auditor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07110f;
+      --panel: #0d1916;
+      --panel-2: #11231e;
+      --border: #23443a;
+      --text: #f2f7f5;
+      --muted: #98aca5;
+      --accent: #8fffcf;
+      --accent-2: #5ee1af;
+      --good: #7ce0a8;
+      --warn: #f2c66d;
+      --bad: #ff918f;
+      --neutral: #aab8b3;
+      --shadow: 0 20px 70px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 8% -10%, rgba(94,225,175,.16), transparent 30%),
+        radial-gradient(circle at 94% 4%, rgba(143,255,207,.09), transparent 22%),
+        var(--bg);
+      color: var(--text);
+    }
+    button, select, textarea, input { font: inherit; }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 72px; }
+    header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:28px; }
+    .eyebrow { color:var(--accent); text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:800; }
+    h1 { margin:8px 0 8px; font-size:clamp(32px,5vw,58px); line-height:.98; letter-spacing:-.045em; }
+    .lede { max-width:750px; margin:0; color:var(--muted); font-size:16px; line-height:1.65; }
+    .privacy { white-space:nowrap; padding:9px 12px; border:1px solid var(--border); border-radius:999px; color:var(--muted); background:rgba(13,25,22,.72); font-size:12px; }
+    .privacy strong { color:var(--accent); }
+    .workspace { border:1px solid var(--border); border-radius:24px; overflow:hidden; box-shadow:var(--shadow); background:rgba(13,25,22,.9); }
+    .tabs { display:flex; border-bottom:1px solid var(--border); background:rgba(6,14,12,.5); }
+    .tab { border:0; background:transparent; color:var(--muted); padding:17px 20px; cursor:pointer; font-weight:750; }
+    .tab.active { color:var(--text); box-shadow:inset 0 -2px 0 var(--accent); }
+    .input-panel { padding:24px; }
+    .controls { display:grid; grid-template-columns:1fr auto auto; gap:14px; align-items:end; margin-bottom:16px; }
+    label { display:block; color:var(--muted); font-size:12px; font-weight:700; margin-bottom:7px; }
+    select { min-width:180px; border:1px solid var(--border); border-radius:12px; background:#091411; color:var(--text); padding:11px 13px; }
+    .checkbox { display:flex; gap:8px; align-items:center; padding:10px 0 2px; color:var(--muted); font-size:13px; }
+    .checkbox input { accent-color:var(--accent-2); }
+    textarea { width:100%; min-height:260px; resize:vertical; border:1px solid var(--border); border-radius:16px; background:#08120f; color:var(--text); padding:18px; line-height:1.6; outline:none; }
+    textarea:focus, select:focus { border-color:var(--accent-2); box-shadow:0 0 0 3px rgba(94,225,175,.08); }
+    .upload-box { display:none; min-height:260px; border:1px dashed #346354; border-radius:16px; align-items:center; justify-content:center; text-align:center; padding:30px; background:#08120f; }
+    .upload-box.active { display:flex; }
+    .upload-box input { max-width:100%; }
+    .paste-box.hidden { display:none; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:16px; }
+    .primary { border:0; border-radius:12px; padding:12px 19px; background:var(--accent); color:#052117; font-weight:850; cursor:pointer; }
+    .primary:disabled { opacity:.55; cursor:wait; }
+    .secondary { border:1px solid var(--border); border-radius:12px; padding:11px 15px; background:transparent; color:var(--text); cursor:pointer; }
+    .hint { margin-left:auto; color:var(--muted); font-size:12px; }
+    .error { display:none; margin-top:14px; padding:12px 14px; border:1px solid rgba(255,145,143,.35); background:rgba(255,145,143,.08); color:#ffc2c0; border-radius:12px; }
+    .results { display:none; margin-top:28px; }
+    .results.visible { display:block; }
+    .result-head { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin-bottom:14px; }
+    .result-head h2 { margin:0; font-size:26px; letter-spacing:-.03em; }
+    .result-head p { margin:6px 0 0; color:var(--muted); }
+    .level { padding:8px 12px; border-radius:999px; border:1px solid var(--border); color:var(--accent); background:rgba(143,255,207,.06); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+    .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    .card { border:1px solid var(--border); border-radius:18px; padding:17px; background:var(--panel); min-height:152px; }
+    .card-top { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+    .card h3 { margin:0; font-size:14px; }
+    .score { font-size:28px; font-weight:850; letter-spacing:-.04em; }
+    .score small { font-size:12px; color:var(--muted); font-weight:600; }
+    .status { margin:18px 0 7px; font-weight:800; font-size:14px; }
+    .detail { color:var(--muted); font-size:12px; line-height:1.5; }
+    .good { color:var(--good); } .warn { color:var(--warn); } .bad { color:var(--bad); } .neutral { color:var(--neutral); }
+    .sections { display:grid; grid-template-columns:1.15fr .85fr; gap:14px; margin-top:14px; }
+    .section { border:1px solid var(--border); border-radius:18px; padding:19px; background:var(--panel); }
+    .section h3 { margin:0 0 12px; font-size:16px; }
+    .section-copy { color:var(--muted); line-height:1.6; font-size:14px; }
+    .findings { display:grid; gap:9px; max-height:420px; overflow:auto; }
+    .finding { padding:12px; border-radius:12px; background:var(--panel-2); border:1px solid rgba(35,68,58,.8); }
+    .finding strong { font-size:13px; }
+    .finding p { margin:6px 0 0; color:var(--muted); font-size:12px; line-height:1.5; word-break:break-word; }
+    .empty { color:var(--muted); font-size:13px; }
+    pre { max-height:420px; overflow:auto; padding:15px; border-radius:14px; background:#050d0b; color:#c8dbd4; border:1px solid var(--border); font-size:11px; line-height:1.55; }
+    .footer-note { margin-top:18px; color:var(--muted); font-size:12px; line-height:1.6; }
+    @media (max-width:900px) { .cards{grid-template-columns:repeat(2,1fr)} .sections{grid-template-columns:1fr} .controls{grid-template-columns:1fr 1fr} .controls > div:first-child{grid-column:1/-1} }
+    @media (max-width:620px) { header{display:block}.privacy{display:inline-block;margin-top:18px}.cards{grid-template-columns:1fr}.controls{grid-template-columns:1fr}.hint{width:100%;margin-left:0}.shell{width:min(100% - 20px,1180px);padding-top:22px}.input-panel{padding:16px} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">Text Provenance Auditor V3</div>
+        <h1>Evidence, not guesses.</h1>
+        <p class="lede">Inspect provider-verifiable watermark evidence, C2PA Content Credentials, Unicode anomalies and weak stylometric signals without turning them into a misleading AI probability.</p>
+      </div>
+      <div class="privacy"><strong>Hosted preview</strong> · no app-side file persistence</div>
+    </header>
+
+    <section class="workspace">
+      <div class="tabs">
+        <button class="tab active" data-mode="text">Paste text</button>
+        <button class="tab" data-mode="file">Upload file</button>
+      </div>
+      <div class="input-panel">
+        <div class="controls">
+          <div>
+            <label for="provider">Provider to verify</label>
+            <select id="provider">
+              <option value="anthropic">Claude / Anthropic</option>
+              <option value="google">Gemini / Google</option>
+              <option value="auto">Auto from C2PA hints</option>
+              <option value="none">No provider check</option>
+            </select>
+          </div>
+          <label class="checkbox"><input id="segments" type="checkbox" checked /> Segment long documents</label>
+          <label class="checkbox"><input id="c2pa" type="checkbox" checked /> Inspect C2PA for files</label>
+        </div>
+
+        <div class="paste-box" id="pasteBox">
+          <textarea id="textInput" placeholder="Paste the text you want to audit…"></textarea>
+        </div>
+        <div class="upload-box" id="uploadBox">
+          <div>
+            <p><strong>Choose a text, document or C2PA-capable asset</strong></p>
+            <p style="color:var(--muted);font-size:13px">TXT, MD, DOCX, text-based PDF and supported C2PA assets. Hosted upload limit: 4 MB.</p>
+            <input id="fileInput" type="file" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="analyseBtn">Analyse provenance</button>
+          <button class="secondary" id="clearBtn">Clear</button>
+          <span class="hint">No combined “AI-generated %” is calculated. Avoid uploading confidential material to the public demo.</span>
+        </div>
+        <div class="error" id="errorBox"></div>
+      </div>
+    </section>
+
+    <section class="results" id="results">
+      <div class="result-head">
+        <div>
+          <h2>Audit result</h2>
+          <p id="sourceMeta"></p>
+        </div>
+        <div class="level" id="overallLevel">No positive evidence</div>
+      </div>
+
+      <div class="cards">
+        <article class="card" id="providerCard"></article>
+        <article class="card" id="c2paCard"></article>
+        <article class="card" id="unicodeCard"></article>
+        <article class="card" id="styleCard"></article>
+      </div>
+
+      <div class="sections">
+        <article class="section">
+          <h3>What the evidence establishes</h3>
+          <div class="section-copy" id="interpretation"></div>
+          <div class="footer-note" id="limitations"></div>
+        </article>
+        <article class="section">
+          <h3>Affected passages and findings</h3>
+          <div class="findings" id="findings"></div>
+        </article>
+      </div>
+
+      <div class="sections">
+        <article class="section">
+          <h3>Raw report</h3>
+          <div class="actions" style="margin:0 0 12px">
+            <button class="secondary" id="downloadBtn">Download JSON</button>
+            <button class="secondary" id="copyBtn">Copy JSON</button>
+          </div>
+          <pre id="rawJson"></pre>
+        </article>
+        <article class="section">
+          <h3>How to read this</h3>
+          <div class="section-copy">
+            <p><strong>Provider evidence</strong> is strongest when an authorised provider verifier returns a result.</p>
+            <p><strong>Signed provenance</strong> reports validated C2PA history where available.</p>
+            <p><strong>Observable anomalies</strong> are real text features, but may have innocent explanations.</p>
+            <p><strong>Style heuristics</strong> are deliberately weak and never prove AI authorship.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+<script>
+let mode = 'text';
+let lastReport = null;
+const $ = (id) => document.getElementById(id);
+
+function setMode(next) {
+  mode = next;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.mode === next));
+  $('pasteBox').classList.toggle('hidden', next !== 'text');
+  $('uploadBox').classList.toggle('active', next === 'file');
+  $('c2pa').disabled = next !== 'file';
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+setMode('text');
+
+function scoreText(score) { return score === null || score === undefined ? '—' : String(score); }
+function statusClass(kind, positive=false) {
+  if (positive) return 'good';
+  if (['unavailable','not_applicable','not_checked','absent'].includes(kind)) return 'neutral';
+  if (kind && String(kind).includes('warning')) return 'warn';
+  return 'neutral';
+}
+function card(title, score, status, detail, cls='neutral') {
+  return `<div class="card-top"><h3>${title}</h3><div class="score">${scoreText(score)}${score !== null && score !== undefined ? '<small>/100</small>' : ''}</div></div><div class="status ${cls}">${status}</div><div class="detail">${detail}</div>`;
+}
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function human(v) { return String(v ?? 'unknown').replaceAll('_',' '); }
+
+function render(report) {
+  lastReport = report;
+  const scores = report.evidence_scores || {};
+  const wm = report.watermark_verification || {};
+  const c2pa = report.c2pa || {};
+  const uni = report.unicode_forensics || {};
+  const sty = report.stylometry || {};
+  const summary = report.evidence_summary || {};
+
+  $('sourceMeta').textContent = `${report.source || 'input'} · ${report.words || 0} words · ${report.chars || 0} characters`;
+  $('overallLevel').textContent = human(summary.overall_level || 'no_positive_evidence');
+
+  const verified = wm.verified === true;
+  $('providerCard').innerHTML = card('Provider evidence', scores.provider_evidence, human(wm.status), esc(wm.reason || `${human(wm.provider)} verifier`), verified ? 'good' : statusClass(wm.status));
+  const c2paPositive = c2pa.manifest_present === true && c2pa.validation_ok === true;
+  $('c2paCard').innerHTML = card('Signed provenance', scores.signed_provenance, human(c2pa.status), c2pa.manifest_present ? `Manifest: ${esc(c2pa.active_manifest || 'present')}` : esc(c2pa.reason || 'No validated manifest established.'), c2paPositive ? 'good' : statusClass(c2pa.status));
+  const anomalyCount = (uni.suspicious_count || 0) + (uni.mixed_script_count || 0);
+  $('unicodeCard').innerHTML = card('Observable anomalies', scores.observable_text_anomalies, anomalyCount ? `${anomalyCount} finding${anomalyCount === 1 ? '' : 's'}` : 'No findings', `${uni.suspicious_count || 0} Unicode · ${uni.mixed_script_count || 0} mixed-script`, anomalyCount ? 'warn' : 'neutral');
+  $('styleCard').innerHTML = card('Style heuristics', scores.style_heuristics, `${sty.flagged_signal_count || 0} weak flag${sty.flagged_signal_count === 1 ? '' : 's'}`, 'Pattern diagnostics only. Not proof of AI authorship.', sty.flagged_signal_count ? 'warn' : 'neutral');
+
+  $('interpretation').textContent = summary.interpretation || 'No interpretation supplied.';
+  $('limitations').innerHTML = `<strong>Limitations:</strong> ${(report.limitations || []).map(esc).join(' · ')}`;
+
+  const findings = [];
+  (uni.findings || []).forEach(f => findings.push(`<div class="finding"><strong>${esc(f.codepoint)} · ${esc(f.family)} · ${esc(f.severity)}</strong><p>${esc(f.name)}<br>${esc(f.context)}</p></div>`));
+  (uni.mixed_script_findings || []).forEach(f => findings.push(`<div class="finding"><strong>Mixed script · ${esc((f.scripts || []).join(' + '))}</strong><p>${esc(f.token)}<br>${esc(f.context)}</p></div>`));
+  (report.segments || []).filter(s => s.unicode_suspicious_count || s.mixed_script_count || s.stylometry_flagged_signal_count).forEach(s => findings.push(`<div class="finding"><strong>Segment ${s.index + 1} · ${s.word_count} words</strong><p>${s.unicode_suspicious_count} Unicode · ${s.mixed_script_count} mixed-script · ${s.stylometry_flagged_signal_count} style flags<br>Character range ${s.char_start}–${s.char_end}</p></div>`));
+  $('findings').innerHTML = findings.length ? findings.join('') : '<div class="empty">No observable passages were flagged. This does not establish human authorship.</div>';
+
+  $('rawJson').textContent = JSON.stringify(report, null, 2);
+  $('results').classList.add('visible');
+  $('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function analyse() {
+  $('errorBox').style.display = 'none';
+  $('analyseBtn').disabled = true;
+  $('analyseBtn').textContent = 'Analysing…';
+  try {
+    let res;
+    if (mode === 'text') {
+      const text = $('textInput').value;
+      if (!text.trim()) throw new Error('Paste some text first.');
+      res = await fetch('/api/scan-text', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({text, provider:$('provider').value, include_segments:$('segments').checked})
+      });
+    } else {
+      const file = $('fileInput').files[0];
+      if (!file) throw new Error('Choose a file first.');
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('provider', $('provider').value);
+      fd.append('include_segments', $('segments').checked ? 'true' : 'false');
+      fd.append('inspect_c2pa', $('c2pa').checked ? 'true' : 'false');
+      res = await fetch('/api/scan-file', {method:'POST', body:fd});
+    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+    render(data);
+  } catch (err) {
+    $('errorBox').textContent = err.message || String(err);
+    $('errorBox').style.display = 'block';
+  } finally {
+    $('analyseBtn').disabled = false;
+    $('analyseBtn').textContent = 'Analyse provenance';
+  }
+}
+
+$('analyseBtn').addEventListener('click', analyse);
+$('clearBtn').addEventListener('click', () => { $('textInput').value=''; $('fileInput').value=''; $('results').classList.remove('visible'); lastReport=null; });
+$('downloadBtn').addEventListener('click', () => {
+  if (!lastReport) return;
+  const blob = new Blob([JSON.stringify(lastReport,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='provenance-audit-report.json'; a.click(); URL.revokeObjectURL(a.href);
+});
+$('copyBtn').addEventListener('click', async () => { if(lastReport) await navigator.clipboard.writeText(JSON.stringify(lastReport,null,2)); });
+</script>
+</body>
+</html>
